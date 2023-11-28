@@ -15,8 +15,7 @@ namespace WindowsFormsApp1
 		List<Item> devices;
 		string lastReceivedData = "";
 		DateTime lastProcessedTimestamp = DateTime.MinValue;
-		int messageProcessInterval;
-		System.Timers.Timer timer;
+		int messageProcessInterval = 5000;
 
 		public Form1()
 		{
@@ -24,13 +23,6 @@ namespace WindowsFormsApp1
 
 			// Create a new SerialPort object with default settings.
 			sp = new SerialPort(Properties.Settings.Default.SerialPortName ?? "COM3", Properties.Settings.Default.SerialPortBaudRate != 0 ? Properties.Settings.Default.SerialPortBaudRate : 9600);
-
-			// Create a timer with a 1 second interval.
-			timer = new System.Timers.Timer();
-			timer.Interval = 2000;
-
-			// Hook up the Elapsed event for the timer.
-			timer.Elapsed += new System.Timers.ElapsedEventHandler(ClearlastReceivedData);
 
 			// Update the list
 			UpdateList();
@@ -68,12 +60,17 @@ namespace WindowsFormsApp1
 			foreach (Item device in devices)
 			{
 				// Create a new ListViewItem
-				ListViewItem listItem = new ListViewItem();
-				listItem.Tag = device;
-				listItem.Text = device.Name;
-				listItem.SubItems.Add("Waiting...");
-				listItem.SubItems.Add(device.Type);
-				listItem.SubItems.Add(device.Notifications ? "On" : "Off");
+				ListViewItem listItem = new ListViewItem
+				{
+					Tag = device,
+					Text = device.Name,
+					SubItems = {
+						"Waiting...",
+						device.Type,
+						device.Notifications ? "On" : "Off"
+					}
+				};
+
 				lvDevices.Items.Add(listItem);
 			}
 		}
@@ -90,16 +87,22 @@ namespace WindowsFormsApp1
 			DateTime currentTimestamp = DateTime.Now;
 
 			// If the data is the same as the last received data, or it was processed recently, return
-			if (receivedData == lastReceivedData || (currentTimestamp - lastProcessedTimestamp).TotalMilliseconds < messageProcessInterval)
+			if (receivedData == lastReceivedData && (currentTimestamp - lastProcessedTimestamp).TotalMilliseconds < messageProcessInterval)
 			{
 				// If the timer is not enabled, start it
-				if (!timer.Enabled) timer.Start();
+				//if (!timer.Enabled) timer.Start();
+				Debug.WriteLine("Data is the same as the last received data, or it was processed recently, return");
 
 				return;
 			}
 
+			Debug.WriteLine("Data is not the same as the last received data, or it was not processed recently, continue");
+
 			// Set the last received data
 			lastReceivedData = receivedData;
+
+			// Set the last processed timestamp
+			lastProcessedTimestamp = currentTimestamp;
 
 			// Trim the data
 			receivedData = receivedData.TrimEnd('\r', '\n');
@@ -161,11 +164,6 @@ namespace WindowsFormsApp1
 
 			// update the list
 			UpdateList();
-		}
-
-		private void ClearlastReceivedData(object sender, System.Timers.ElapsedEventArgs e)
-		{
-			lastReceivedData = "";
 		}
 	}
 }
